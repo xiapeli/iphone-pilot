@@ -1,19 +1,27 @@
 #!/usr/bin/env swift
 // iphone_event.swift — Send mouse/keyboard events to iPhone Mirroring
 //
-// Zero cursor movement. Events are posted via CGEvent with private source
-// at the correct absolute coordinates. iPhone Mirroring is briefly activated
-// to receive events (~300ms), then the previous app is restored.
-// The physical mouse cursor NEVER moves.
+// ZERO visible cursor movement. For mouse events (tap, scroll, swipe):
+//   1. Hide the cursor (CGDisplayHideCursor)
+//   2. Save current cursor position
+//   3. Warp to target coordinates
+//   4. Post click/scroll via .cghidEventTap (required by iPhone Mirroring)
+//   5. Warp cursor back to saved position
+//   6. Show cursor again
+// The user sees NO cursor movement — it's hidden during the entire operation.
+//
+// For keyboard events: posted directly, no cursor involvement.
+// iPhone Mirroring is briefly activated to receive events, then restored.
 //
 // Usage:
 //   iphone_event tap <x> <y>
-//   iphone_event swipe <x1> <y1> <x2> <y2> [steps]
+//   iphone_event swipe <x1> <y1> <x2> <y2>
+//   iphone_event scroll <x> <y> [deltaY]
 //   iphone_event type <text>
 //   iphone_event key <keycode>
-//   iphone_event bounds
-//   iphone_event windowid
-//   iphone_event pid
+//   iphone_event home | appswitcher | spotlight
+//   iphone_event openapp <name>
+//   iphone_event bounds | windowid | pid
 
 import Cocoa
 
@@ -54,7 +62,6 @@ func getWindowInfo(pid: pid_t) -> WindowInfo? {
         [.optionAll, .excludeDesktopElements], kCGNullWindowID
     ) as? [[String: Any]] ?? []
 
-    // Collect all windows for this PID that look like phone screens
     var candidates: [(WindowInfo, CGFloat)] = []
     for window in windowList {
         guard let ownerPID = window[kCGWindowOwnerPID as String] as? pid_t,
@@ -78,43 +85,62 @@ func getWindowInfo(pid: pid_t) -> WindowInfo? {
     }
 
     // Prefer portrait windows (iPhone aspect ratio ~2.0+)
-    // Sort by aspect ratio descending — tallest/narrowest first
     candidates.sort { $0.1 > $1.1 }
     if let best = candidates.first, best.1 > 1.3 {
         log("selected window: id=\(best.0.id) aspect=\(String(format: "%.2f", best.1))")
         return best.0
     }
-    // Fallback: return any window
     return candidates.first?.0
 }
 
 // MARK: - Focus management
 
-/// Save the currently focused app, activate iPhone Mirroring, return the saved app
 func activateIPhoneMirroring(_ app: NSRunningApplication) -> NSRunningApplication? {
     let previousApp = NSWorkspace.shared.frontmostApplication
     app.activate()
-    // Wait for it to become frontmost
-    for _ in 0..<30 { // up to 300ms
+    for _ in 0..<30 {
         usleep(10_000)
         if NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier {
             break
         }
     }
-    usleep(50_000) // extra settle time
+    usleep(50_000)
     return previousApp
 }
 
-/// Restore the previously focused app
 func restorePreviousApp(_ app: NSRunningApplication?) {
     guard let app = app else { return }
     usleep(50_000)
     app.activate()
 }
 
+// MARK: - Stealth cursor: hide → warp → act → warp back → show
+
+/// Get current cursor position (screen coordinates, origin top-left)
+func getCursorPosition() -> CGPoint {
+    return CGEvent(source: nil)?.location ?? .zero
+}
+
+/// Hide cursor, warp to target position. Returns saved cursor position.
+func stealthWarpTo(_ target: CGPoint) -> CGPoint {
+    let saved = getCursorPosition()
+    CGDisplayHideCursor(CGMainDisplayID())
+    CGWarpMouseCursorPosition(target)
+    // After warp, re-associate so next mouse move doesn't jump
+    CGAssociateMouseAndMouseCursorPosition(1)
+    usleep(10_000) // tiny settle
+    return saved
+}
+
+/// Warp cursor back to saved position and show it again.
+func stealthRestore(_ saved: CGPoint) {
+    CGWarpMouseCursorPosition(saved)
+    CGAssociateMouseAndMouseCursorPosition(1)
+    CGDisplayShowCursor(CGMainDisplayID())
+}
+
 // MARK: - Event source & posting
 
-/// Private event source — doesn't affect physical mouse/keyboard state
 let eventSource: CGEventSource? = CGEventSource(stateID: .privateState)
 
 func postMouse(type: CGEventType, at point: CGPoint) {
@@ -126,51 +152,49 @@ func postMouse(type: CGEventType, at point: CGPoint) {
     event.post(tap: .cghidEventTap)
 }
 
-func postDrag(to point: CGPoint) {
-    guard let event = CGEvent(mouseEventSource: eventSource, mouseType: .leftMouseDragged,
-                              mouseCursorPosition: point, mouseButton: .left) else { return }
-    event.post(tap: .cghidEventTap)
-}
-
 func postMouseMove(to point: CGPoint) {
     guard let event = CGEvent(mouseEventSource: eventSource, mouseType: .mouseMoved,
                               mouseCursorPosition: point, mouseButton: .left) else { return }
     event.post(tap: .cghidEventTap)
 }
 
-// MARK: - Actions (zero cursor movement)
+// MARK: - Actions (stealth cursor — user sees NO movement)
 
 func tap(at absPoint: CGPoint, app: NSRunningApplication) {
     log("tap: target=\(absPoint)")
 
+    // 1. Hide cursor and warp to target
+    let saved = stealthWarpTo(absPoint)
+
+    // 2. Activate iPhone Mirroring
     let previousApp = activateIPhoneMirroring(app)
 
-    // Post mouseMoved so window server routes to correct window
+    // 3. Post mouse move + click (cursor is hidden, user sees nothing)
     postMouseMove(to: absPoint)
     usleep(30_000)
-
     postMouse(type: .leftMouseDown, at: absPoint)
-    usleep(80_000) // hold
+    usleep(80_000)
     postMouse(type: .leftMouseUp, at: absPoint)
     usleep(50_000)
 
+    // 4. Restore cursor to original position (still hidden)
+    stealthRestore(saved)
+
+    // 5. Restore previous app
     restorePreviousApp(previousApp)
-    log("tap: done, focus restored")
+    log("tap: done")
     print("OK")
 }
 
-/// Swipe using scroll wheel events (both horizontal and vertical).
-/// iPhone Mirroring maps scroll wheel → touch swipe on iPhone.
-/// Shift+scroll = horizontal scroll.
 func swipe(at point: CGPoint, deltaX: Int32, deltaY: Int32, app: NSRunningApplication) {
     log("swipe: at=\(point), deltaX=\(deltaX), deltaY=\(deltaY)")
 
+    let saved = stealthWarpTo(point)
     let previousApp = activateIPhoneMirroring(app)
 
     postMouseMove(to: point)
     usleep(50_000)
 
-    // Post scroll events in small increments for smooth scrolling
     let scrollSteps: Int32 = 8
     let perStepX = deltaX / scrollSteps
     let perStepY = deltaY / scrollSteps
@@ -187,22 +211,21 @@ func swipe(at point: CGPoint, deltaX: Int32, deltaY: Int32, app: NSRunningApplic
     }
     usleep(100_000)
 
+    stealthRestore(saved)
     restorePreviousApp(previousApp)
-    log("swipe: done, focus restored")
+    log("swipe: done")
     print("OK")
 }
 
-/// Scroll using scroll wheel events (alternative to drag-based swipe)
 func scroll(at point: CGPoint, deltaY: Int32, app: NSRunningApplication) {
     log("scroll: at=\(point), deltaY=\(deltaY)")
 
+    let saved = stealthWarpTo(point)
     let previousApp = activateIPhoneMirroring(app)
 
-    // Post a mouseMoved to position the "virtual cursor" over the window
     postMouseMove(to: point)
     usleep(50_000)
 
-    // Post scroll wheel events
     let scrollSteps: Int32 = 5
     let perStep = deltaY / scrollSteps
     for _ in 0..<scrollSteps {
@@ -217,15 +240,15 @@ func scroll(at point: CGPoint, deltaY: Int32, app: NSRunningApplication) {
     }
     usleep(100_000)
 
+    stealthRestore(saved)
     restorePreviousApp(previousApp)
-    log("scroll: done, focus restored")
+    log("scroll: done")
     print("OK")
 }
 
-// MARK: - Character to keycode mapping
+// MARK: - Keyboard (no cursor involvement at all)
 
 let charToKeyCode: [Character: (CGKeyCode, Bool)] = [
-    // (keycode, needsShift)
     "a": (0, false), "s": (1, false), "d": (2, false), "f": (3, false),
     "h": (4, false), "g": (5, false), "z": (6, false), "x": (7, false),
     "c": (8, false), "v": (9, false), "b": (11, false), "q": (12, false),
@@ -238,7 +261,6 @@ let charToKeyCode: [Character: (CGKeyCode, Bool)] = [
     "j": (38, false), "'": (39, false), "k": (40, false), ";": (41, false),
     "\\": (42, false), ",": (43, false), "/": (44, false), "n": (45, false),
     "m": (46, false), ".": (47, false), "`": (50, false), " ": (49, false),
-    // Uppercase
     "A": (0, true), "S": (1, true), "D": (2, true), "F": (3, true),
     "H": (4, true), "G": (5, true), "Z": (6, true), "X": (7, true),
     "C": (8, true), "V": (9, true), "B": (11, true), "Q": (12, true),
@@ -246,7 +268,6 @@ let charToKeyCode: [Character: (CGKeyCode, Bool)] = [
     "T": (17, true), "O": (31, true), "U": (32, true), "I": (34, true),
     "P": (35, true), "L": (37, true), "J": (38, true), "K": (40, true),
     "N": (45, true), "M": (46, true),
-    // Shift symbols
     "!": (18, true), "@": (19, true), "#": (20, true), "$": (21, true),
     "^": (22, true), "%": (23, true), "+": (24, true), "(": (25, true),
     "&": (26, true), "_": (27, true), "*": (28, true), ")": (29, true),
@@ -269,7 +290,6 @@ func typeChar(_ char: Character) {
         }
         usleep(50_000)
     } else {
-        // Fallback for non-ASCII: use unicode string approach
         let str = String(char)
         let chars = Array(str.utf16)
         if let down = CGEvent(keyboardEventSource: eventSource, virtualKey: 0, keyDown: true) {
@@ -287,35 +307,36 @@ func typeChar(_ char: Character) {
 
 func typeText(_ text: String, app: NSRunningApplication, restoreFocus: Bool = true) {
     let previousApp = activateIPhoneMirroring(app)
-
     for char in text {
         typeChar(char)
     }
-
     if restoreFocus {
         restorePreviousApp(previousApp)
     }
     print("OK")
 }
 
-/// Helper to post a keyboard shortcut
-func postKeyCombo(keyCode: CGKeyCode, flags: CGEventFlags = []) {
-    if let d = CGEvent(keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: true) {
-        d.flags = flags; d.post(tap: .cghidEventTap)
-    }
-    usleep(30_000)
-    if let u = CGEvent(keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: false) {
-        u.flags = flags; u.post(tap: .cghidEventTap)
+func pressKey(_ keyCode: CGKeyCode, flags: CGEventFlags = [], app: NSRunningApplication) {
+    let previousApp = activateIPhoneMirroring(app)
+    if let down = CGEvent(keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: true) {
+        down.flags = flags
+        down.post(tap: .cghidEventTap)
     }
     usleep(50_000)
+    if let up = CGEvent(keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: false) {
+        up.flags = flags
+        up.post(tap: .cghidEventTap)
+    }
+    restorePreviousApp(previousApp)
+    print("OK")
 }
 
-/// Open an app by name using Spotlight via AppleScript (most reliable for keyboard sequences).
-/// Flow: activate → Home → Spotlight → type name → Return → restore focus.
+/// Open app via AppleScript (most reliable for multi-step keyboard sequences)
 func openApp(_ name: String) {
     log("openapp: opening '\(name)' via AppleScript")
 
-    // Escape special chars for AppleScript string
+    let previousApp = NSWorkspace.shared.frontmostApplication
+
     let escaped = name.replacingOccurrences(of: "\\", with: "\\\\")
                       .replacingOccurrences(of: "\"", with: "\\\"")
 
@@ -340,59 +361,8 @@ func openApp(_ name: String) {
     try? proc.run()
     proc.waitUntilExit()
 
-    // Restore previous app
-    // (AppleScript leaves iPhone Mirroring in front; we restore from here)
-    if let prev = NSWorkspace.shared.runningApplications.first(where: {
-        $0.processIdentifier != findIPhoneMirroringApp()?.processIdentifier &&
-        $0.activationPolicy == .regular &&
-        $0.isActive == false &&
-        $0.localizedName != "Finder"
-    }) {
-        prev.activate()
-    }
-
-    log("openapp: done")
-    print("OK")
-}
-
-/// Type text via AppleScript System Events (more reliable than CGEvent for iPhone Mirroring)
-func typeTextViaAppleScript(_ text: String, app: NSRunningApplication) {
-    let escaped = text.replacingOccurrences(of: "\\", with: "\\\\")
-                      .replacingOccurrences(of: "\"", with: "\\\"")
-
-    let script = """
-    tell application "iPhone Mirroring" to activate
-    delay 0.3
-    tell application "System Events"
-        keystroke "\(escaped)"
-    end tell
-    """
-
-    let proc = Process()
-    proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-    proc.arguments = ["-e", script]
-    try? proc.run()
-    proc.waitUntilExit()
-    usleep(200_000)
-
-    restorePreviousApp(NSWorkspace.shared.frontmostApplication)
-    print("OK")
-}
-
-func pressKey(_ keyCode: CGKeyCode, flags: CGEventFlags = [], app: NSRunningApplication) {
-    let previousApp = activateIPhoneMirroring(app)
-
-    if let down = CGEvent(keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: true) {
-        down.flags = flags
-        down.post(tap: .cghidEventTap)
-    }
-    usleep(50_000)
-    if let up = CGEvent(keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: false) {
-        up.flags = flags
-        up.post(tap: .cghidEventTap)
-    }
-
     restorePreviousApp(previousApp)
+    log("openapp: done")
     print("OK")
 }
 
@@ -447,10 +417,9 @@ case "swipe":
         fputs("Usage: iphone_event swipe <x1> <y1> <x2> <y2>\n", stderr); exit(1)
     }
     let b = info.bounds
-    // Calculate delta from start to end and use scroll wheel
     let midX = (x1 + x2) / 2.0
     let midY = (y1 + y2) / 2.0
-    let deltaX = Int32(x2 - x1) * 3 // amplify for better gesture recognition
+    let deltaX = Int32(x2 - x1) * 3
     let deltaY = Int32(y2 - y1) * 3
     log("swipe cmd: from=(\(x1),\(y1)) to=(\(x2),\(y2)) deltaX=\(deltaX) deltaY=\(deltaY)")
     swipe(
@@ -460,19 +429,16 @@ case "swipe":
     )
 
 case "home":
-    // Cmd+1 = Home screen in iPhone Mirroring
     log("home: sending Cmd+1")
-    pressKey(18, flags: .maskCommand, app: mirroringApp) // keycode 18 = "1"
+    pressKey(18, flags: .maskCommand, app: mirroringApp)
 
 case "appswitcher":
-    // Cmd+2 = App Switcher in iPhone Mirroring
     log("appswitcher: sending Cmd+2")
-    pressKey(19, flags: .maskCommand, app: mirroringApp) // keycode 19 = "2"
+    pressKey(19, flags: .maskCommand, app: mirroringApp)
 
 case "spotlight":
-    // Cmd+3 = Spotlight in iPhone Mirroring
     log("spotlight: sending Cmd+3")
-    pressKey(20, flags: .maskCommand, app: mirroringApp) // keycode 20 = "3"
+    pressKey(20, flags: .maskCommand, app: mirroringApp)
 
 case "openapp":
     guard args.count >= 3 else {
