@@ -10,7 +10,7 @@ A toolkit that lets Claude Code control an iPhone via macOS iPhone Mirroring. No
 source .venv/bin/activate
 iphone-pilot status         # Check connection
 iphone-pilot screenshot     # Capture screen
-iphone-pilot tap 163 340    # Tap at coordinates
+iphone-pilot tap 326 680    # Tap at pixel coordinates (from screenshot)
 iphone-pilot type "hello"   # Type text
 iphone-pilot home            # Go to home screen
 ```
@@ -47,8 +47,9 @@ skills/                     → Learned skills (JSON files)
 ## Coordinate System
 
 - Origin (0, 0) = top-left of the iPhone Mirroring window
-- Typical window size: ~326x720 pixels
-- All tap/swipe coordinates are relative to this window
+- Screenshot resolution: ~652x1440 pixels (Retina 2x)
+- All tap/swipe coordinates use **pixel** values from the screenshot
+- The Swift helper automatically converts pixels → points (divides by scale factor)
 
 ## Development
 
@@ -62,6 +63,6 @@ python3 -m venv .venv && source .venv/bin/activate && pip install -e .
 # Test
 iphone-pilot status
 iphone-pilot screenshot
-helper/iphone_event tap 163 340
-helper/iphone_event scroll 163 400 -300
+helper/iphone_event tap 326 680   # pixel coords from screenshot
+helper/iphone_event scroll 326 800 -300
 ```

@@ -432,6 +432,14 @@ guard let mirroringApp = findIPhoneMirroringApp() else {
 let pid = mirroringApp.processIdentifier
 let cmd = args[1]
 
+// Detect Retina scale factor.
+// Screenshots are captured at native resolution (e.g. 652x1440 on 2x Retina)
+// but CGEvent coordinates use points (e.g. 326x720).
+// The CLI accepts pixel coordinates (matching what Claude sees in screenshots)
+// and divides by this scale factor to get points.
+let scaleFactor: CGFloat = NSScreen.main?.backingScaleFactor ?? 2.0
+log("scale factor: \(scaleFactor)")
+
 switch cmd {
 case "pid":
     print(pid)
@@ -447,7 +455,10 @@ case "bounds":
         fputs("ERROR: Window not found\n", stderr); exit(1)
     }
     let b = info.bounds
-    print("\(Int(b.origin.x)),\(Int(b.origin.y)),\(Int(b.width)),\(Int(b.height))")
+    // Output pixel dimensions (matching screenshot resolution)
+    let pxW = Int(b.width * scaleFactor)
+    let pxH = Int(b.height * scaleFactor)
+    print("\(Int(b.origin.x)),\(Int(b.origin.y)),\(pxW),\(pxH)")
 
 case "tap":
     guard args.count >= 4, let x = Double(args[2]), let y = Double(args[3]),
@@ -455,8 +466,11 @@ case "tap":
         fputs("Usage: iphone_event tap <x> <y>\n", stderr); exit(1)
     }
     let b = info.bounds
-    let absPoint = CGPoint(x: b.origin.x + x, y: b.origin.y + y)
-    log("tap cmd: relative=(\(x),\(y)) bounds=\(b) absolute=\(absPoint)")
+    // Convert pixel coordinates (from screenshot) to point coordinates
+    let ptX = x / Double(scaleFactor)
+    let ptY = y / Double(scaleFactor)
+    let absPoint = CGPoint(x: b.origin.x + ptX, y: b.origin.y + ptY)
+    log("tap cmd: pixel=(\(x),\(y)) point=(\(ptX),\(ptY)) bounds=\(b) absolute=\(absPoint)")
     tap(at: absPoint, app: mirroringApp)
 
 case "swipe":
@@ -467,11 +481,14 @@ case "swipe":
         fputs("Usage: iphone_event swipe <x1> <y1> <x2> <y2>\n", stderr); exit(1)
     }
     let b = info.bounds
-    let midX = (x1 + x2) / 2.0
-    let midY = (y1 + y2) / 2.0
-    let deltaX = Int32(x2 - x1) * 3
-    let deltaY = Int32(y2 - y1) * 3
-    log("swipe cmd: from=(\(x1),\(y1)) to=(\(x2),\(y2)) deltaX=\(deltaX) deltaY=\(deltaY)")
+    // Convert pixel coordinates to points
+    let ptX1 = x1 / Double(scaleFactor), ptY1 = y1 / Double(scaleFactor)
+    let ptX2 = x2 / Double(scaleFactor), ptY2 = y2 / Double(scaleFactor)
+    let midX = (ptX1 + ptX2) / 2.0
+    let midY = (ptY1 + ptY2) / 2.0
+    let deltaX = Int32(ptX2 - ptX1) * 3
+    let deltaY = Int32(ptY2 - ptY1) * 3
+    log("swipe cmd: pixel=(\(x1),\(y1))->(\(x2),\(y2)) point=(\(ptX1),\(ptY1))->(\(ptX2),\(ptY2)) delta=(\(deltaX),\(deltaY))")
     swipe(
         at: CGPoint(x: b.origin.x + midX, y: b.origin.y + midY),
         deltaX: deltaX, deltaY: deltaY,
@@ -503,10 +520,13 @@ case "scroll":
         fputs("Usage: iphone_event scroll <x> <y> [deltaY]\n", stderr); exit(1)
     }
     let b = info.bounds
+    // Convert pixel coordinates to points
+    let ptX = x / Double(scaleFactor)
+    let ptY = y / Double(scaleFactor)
     let deltaY: Int32 = args.count >= 5 ? Int32(args[4]) ?? -200 : -200
-    log("scroll cmd: at=(\(x),\(y)) deltaY=\(deltaY)")
+    log("scroll cmd: pixel=(\(x),\(y)) point=(\(ptX),\(ptY)) deltaY=\(deltaY)")
     scroll(
-        at: CGPoint(x: b.origin.x + x, y: b.origin.y + y),
+        at: CGPoint(x: b.origin.x + ptX, y: b.origin.y + ptY),
         deltaY: deltaY,
         app: mirroringApp
     )

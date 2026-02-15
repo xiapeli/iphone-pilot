@@ -70,45 +70,47 @@ After completing the task, summarize the exact steps taken so they can be saved 
 
 ## Screen Coordinates
 
+The screenshot image is **~652 x 1440 pixels** (Retina 2x). All coordinates you estimate from the screenshot should be in these pixel values — the CLI automatically converts to screen points.
+
 ```
-(0, 0) ─────────────────── (~326, 0)
-│          STATUS BAR          │   y ~0-44
+(0, 0) ─────────────────── (~652, 0)
+│          STATUS BAR          │   y ~0-88
 │──────────────────────────────│
-│       NAV BAR / SEARCH       │   y ~44-90
+│       NAV BAR / SEARCH       │   y ~88-180
 │──────────────────────────────│
 │                              │
-│         MAIN CONTENT         │   y ~90-660
+│         MAIN CONTENT         │   y ~180-1320
 │                              │
 │──────────────────────────────│
-│       TAB BAR / TOOLBAR      │   y ~660-710
-│         HOME INDICATOR       │   y ~710-720
-(0, ~720) ─────────────────── (~326, ~720)
+│       TAB BAR / TOOLBAR      │   y ~1320-1420
+│         HOME INDICATOR       │   y ~1420-1440
+(0, ~1440) ─────────────────── (~652, ~1440)
 ```
 
-- **Screen:** ~326 x 720 px
-- **Center:** ~163, 360
+- **Screen:** ~652 x 1440 px (Retina 2x)
+- **Center:** ~326, 720
 
 ## iOS UI Patterns — How to Recognize and Navigate
 
 Understanding these patterns is how you navigate ANY app, regardless of language or design.
 
-### Navigation Bar (top of screen, y ~44-90)
+### Navigation Bar (top of screen, y ~88-180)
 - **Back button:** Usually far left — a "<" chevron or text like "Back", "返回", "戻る"
 - **Title:** Centered text showing current screen name
 - **Right actions:** Share, edit, search, cart, settings icons
-- **Coordinates:** Back button ~(20, 55), title ~(163, 55), right action ~(300, 55)
+- **Coordinates:** Back button ~(40, 110), title ~(326, 110), right action ~(600, 110)
 
-### Tab Bar (bottom of screen, y ~660-710)
+### Tab Bar (bottom of screen, y ~1320-1420)
 - Row of 3-5 icons at the bottom of many apps
 - Common tabs: Home, Search/Explore, Create/Add, Notifications, Profile/Me
 - The active tab is usually highlighted (different color, filled icon)
-- **Coordinates:** evenly spaced, typically at y ~680
+- **Coordinates:** evenly spaced, typically at y ~1360
 
 ### Search Bar
 - Usually at the top of list/grid screens, below nav bar
 - Often shows a magnifying glass icon + placeholder text
 - **Tap it** to activate, then type your query
-- **Coordinates:** typically full-width at y ~70-90
+- **Coordinates:** typically full-width at y ~140-180
 
 ### Lists and Grids
 - **Lists:** rows stacked vertically, tap anywhere on the row to open
@@ -119,17 +121,17 @@ Understanding these patterns is how you navigate ANY app, regardless of language
 - Appear from bottom or center of screen
 - Usually have a close "X" at top-right or top-left
 - May have action buttons at the bottom ("Confirm", "Add to Cart", "Cancel")
-- **Close button X:** typically at (~300, ~200) or (~20, ~200)
+- **Close button X:** typically at (~600, ~400) or (~40, ~400)
 
 ### Alerts and Popups
 - Centered on screen with 1-2 buttons
 - Buttons usually at the bottom of the alert
 - "Cancel" on the left, "OK"/"Confirm" on the right
-- **Coordinates:** buttons at approximately y ~400, x split at ~100 and ~230
+- **Coordinates:** buttons at approximately y ~800, x split at ~200 and ~460
 
 ### Keyboard
 - Appears from bottom when text field is focused
-- **Top of keyboard:** y ~380
+- **Top of keyboard:** y ~760
 - If keyboard is blocking a button you need, scroll the content up first
 - **Dismiss:** tap outside the text field, or press `ip key escape`
 
