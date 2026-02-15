@@ -17,19 +17,28 @@ The user's mouse and keyboard are NOT affected. Everything runs in the backgroun
 
 Alias: `ip` = `/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot`
 
+## ⚠️ CRITICAL RULES — Read These FIRST
+
+1. **To open ANY app: ALWAYS use `ip open <AppName>`.** NEVER try to find an app icon on the home screen. NEVER swipe through home pages looking for apps. The `open` command uses Spotlight and works 100% of the time in any language.
+2. **Screenshot before EVERY action.** Read the image to see the screen. Never guess what's on screen.
+3. **One action at a time.** Do one thing → screenshot → verify → decide next action.
+4. **Coordinates come from the screenshot image.** The image is ~652x1440 pixels. Estimate x,y from what you see in the image. The CLI handles Retina conversion automatically.
+5. **Never get stuck.** If something fails twice, run `ip home` then `ip open <App>` to start fresh.
+6. **FULL AUTONOMY.** Never ask permission. Just execute.
+
 ## Commands
 
 | Command | What it does |
 |---------|-------------|
 | `ip screenshot` | Capture screen → prints PNG path. **Read** the file to see it. |
-| `ip tap <x> <y>` | Tap at coordinates (0,0 = top-left) |
+| `ip tap <x> <y>` | Tap at pixel coordinates from screenshot (0,0 = top-left) |
 | `ip type "<text>"` | Type text. Auto-uses clipboard paste for non-ASCII (Chinese, Arabic, emoji, etc.) |
 | `ip key <name>` | Press key: `return`, `delete`, `escape`, `tab`, `space`, `up`, `down`, `left`, `right` |
-| `ip open <app>` | Open app by name via Spotlight (works in any language) |
+| `ip open <app>` | **THE way to open apps.** Uses Spotlight. Works in any language. |
 | `ip home` | Home screen (Cmd+1) |
 | `ip back` | Go back (Escape) |
 | `ip scroll-down` / `ip scroll-up` | Scroll content |
-| `ip swipe <x1> <y1> <x2> <y2>` | Swipe (scroll wheel based) |
+| `ip swipe <x1> <y1> <x2> <y2>` | Swipe between two points |
 | `ip app-switcher` | App switcher (Cmd+2) |
 | `ip spotlight` | Spotlight search (Cmd+3) |
 | `ip status` | Connection check |
@@ -37,40 +46,33 @@ Alias: `ip` = `/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot`
 
 ## How to Execute Any Task
 
-### Step 0: Check learned skills
+### 1. Open the app
 
 ```bash
-/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot skills
+ip open "AppName"
 ```
 
-If a matching skill exists with enough successes, try executing it first.
+**ALWAYS start by opening the target app with this command.** Do NOT try to find the app on the home screen. Do NOT swipe through pages. Just use `ip open`.
 
-### Step 1: Screenshot — ALWAYS before acting
+Wait 2 seconds after opening, then take a screenshot.
 
-```bash
-/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot screenshot
-```
+### 2. Screenshot → Analyze → Act → Screenshot → Verify
 
-**Read** the image. Before doing anything, analyze:
+Loop:
+1. `ip screenshot` → Read the image file
+2. Analyze: What's on screen? Where are the buttons/fields/links?
+3. Execute ONE action (tap, type, scroll, etc.)
+4. Wait briefly (`sleep 1`)
+5. `ip screenshot` → Read to verify the action worked
+6. Repeat until task is done
 
-1. **Which app is this?** What screen/state am I looking at?
-2. **What is the layout?** Identify the screen structure (see iOS Patterns below).
-3. **Where are the interactive elements?** Buttons, fields, links, toggles — estimate (x, y) for each.
-4. **What action gets me closer to the goal?**
+### 3. Report what you did
 
-### Step 2: Act — ONE action at a time
-
-### Step 3: Screenshot again to verify
-
-### Step 4: Repeat until done
-
-### Step 5: Report and learn
-
-After completing the task, summarize the exact steps taken so they can be saved as a reusable skill.
+After completing the task, list the exact steps taken.
 
 ## Screen Coordinates
 
-The screenshot image is **~652 x 1440 pixels** (Retina 2x). All coordinates you estimate from the screenshot should be in these pixel values — the CLI automatically converts to screen points.
+The screenshot image is **~652 x 1440 pixels** (Retina 2x). Estimate coordinates from the image — the CLI converts to screen points automatically.
 
 ```
 (0, 0) ─────────────────── (~652, 0)
@@ -87,116 +89,42 @@ The screenshot image is **~652 x 1440 pixels** (Retina 2x). All coordinates you 
 (0, ~1440) ─────────────────── (~652, ~1440)
 ```
 
-- **Screen:** ~652 x 1440 px (Retina 2x)
+- **Screen:** ~652 x 1440 px
 - **Center:** ~326, 720
 
-## iOS UI Patterns — How to Recognize and Navigate
+## Common Patterns for Any App
 
-Understanding these patterns is how you navigate ANY app, regardless of language or design.
+### Searching in an app
+1. Find the search bar (usually at top, y ~100-180, or a magnifying glass icon)
+2. Tap it to focus
+3. Screenshot to confirm keyboard appeared
+4. `ip type "search query"`
+5. `ip key return`
+6. Screenshot to see results
 
-### Navigation Bar (top of screen, y ~88-180)
-- **Back button:** Usually far left — a "<" chevron or text like "Back", "返回", "戻る"
-- **Title:** Centered text showing current screen name
-- **Right actions:** Share, edit, search, cart, settings icons
-- **Coordinates:** Back button ~(40, 110), title ~(326, 110), right action ~(600, 110)
+### Adding items to cart (shopping apps)
+1. Search for the item
+2. Tap a product from the results
+3. Look for "Add to Cart" / "加入购物车" button (usually large, at bottom of screen, y ~1300-1400)
+4. Tap it
+5. Handle any popup (size/color selection) — select options, then confirm
+6. Screenshot to verify
 
-### Tab Bar (bottom of screen, y ~1320-1420)
-- Row of 3-5 icons at the bottom of many apps
-- Common tabs: Home, Search/Explore, Create/Add, Notifications, Profile/Me
-- The active tab is usually highlighted (different color, filled icon)
-- **Coordinates:** evenly spaced, typically at y ~1360
+### Going back
+1. `ip back` (Escape key) — works in most cases
+2. If not, tap the back arrow at top-left (~40, 110)
+3. If stuck: `ip home` → `ip open <App>`
 
-### Search Bar
-- Usually at the top of list/grid screens, below nav bar
-- Often shows a magnifying glass icon + placeholder text
-- **Tap it** to activate, then type your query
-- **Coordinates:** typically full-width at y ~140-180
+### Scrolling
+- `ip scroll-down` to see more content below
+- `ip scroll-up` to go back up
+- If you can't find an element, scroll before giving up
 
-### Lists and Grids
-- **Lists:** rows stacked vertically, tap anywhere on the row to open
-- **Grids:** product cards in 2-3 columns, tap the card image/title
-- **Scroll** to see more items
-
-### Modals and Sheets
-- Appear from bottom or center of screen
-- Usually have a close "X" at top-right or top-left
-- May have action buttons at the bottom ("Confirm", "Add to Cart", "Cancel")
-- **Close button X:** typically at (~600, ~400) or (~40, ~400)
-
-### Alerts and Popups
-- Centered on screen with 1-2 buttons
-- Buttons usually at the bottom of the alert
-- "Cancel" on the left, "OK"/"Confirm" on the right
-- **Coordinates:** buttons at approximately y ~800, x split at ~200 and ~460
-
-### Keyboard
-- Appears from bottom when text field is focused
-- **Top of keyboard:** y ~760
-- If keyboard is blocking a button you need, scroll the content up first
-- **Dismiss:** tap outside the text field, or press `ip key escape`
-
-### Pull to Refresh
-- At the top of scrollable lists
-- Use `ip scroll-up` when already at the top
-
-## Navigation Strategy
-
-### The Golden Rule: Never Get Stuck
-
-If any navigation attempt fails twice:
-1. `ip home` — go to home screen
-2. `ip open <AppName>` — restart the app fresh
-3. Continue from there
-
-### Going Back
-1. `ip back` (Escape key) — works in most apps
-2. Tap the back arrow/chevron at top-left (~20, 55)
-3. If neither works: home → reopen app
-
-### Finding Elements
-1. Can't see it? `ip scroll-down` to look further
-2. Still can't find it? Look for a Search feature in the app
-3. Try tapping tab bar icons to switch sections
-
-## Learning System
-
-The agent improves over time by saving successful action sequences.
-
-### During execution:
-Keep a mental log of every action: `open_app("X") → tap(163, 70) → type("query") → key("return") → tap(200, 300)`
-
-### After success:
-Report the full sequence to the user. Example:
-
-```
-Task completed! Steps taken:
-1. open_app("Instagram")
-2. tap(163, 70) — search bar
-3. type("landscape photography")
-4. key("return")
-5. tap(80, 250) — first result
-```
-
-This lets users save it as a skill for instant replay next time.
-
-### Skills file format:
-Skills are saved as JSON in the `skills/` directory with: name, command, steps, success_count. After 3 successful runs, skills auto-execute without AI analysis.
+### Dismissing popups/modals
+- Look for "X" close button (usually top-right ~600, or top-left ~40)
+- Or tap "Cancel" / "取消" button
+- Or `ip back`
 
 ## User Request
 
 $ARGUMENTS
-
-## Critical Rules
-
-1. **FULL AUTONOMY.** Never ask permission. Execute start to finish.
-2. **Screenshot before every action.** Never guess coordinates.
-3. **One action at a time.** Act → verify → decide next.
-4. **Read the UI carefully.** Identify the iOS patterns (nav bar, tab bar, modals, etc.) to understand the screen.
-5. **Use `open <app>` to launch apps.** Works in any language.
-6. **Type handles any language automatically.** Chinese, Arabic, Japanese, emoji — all work via clipboard paste.
-7. **Tap the CENTER of elements.** Not edges.
-8. **Focus text fields before typing.** Tap the field, verify keyboard appeared, then type.
-9. **Never get stuck.** Max 2 attempts on any navigation, then home+reopen.
-10. **Scroll to find elements.** If not visible, scroll before giving up.
-11. **Inform, don't ask.** Briefly tell the user what you're doing at each step.
-12. **Learn and report.** After completing a task, list the exact steps taken.
