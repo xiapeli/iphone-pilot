@@ -8,6 +8,7 @@ allowed-tools: Bash(*), Read, Glob, Grep
 # iPhone Pilot - Control iPhone via iPhone Mirroring
 
 You control an iPhone through macOS iPhone Mirroring using the `iphone-pilot` CLI.
+All actions run in the background — the user's mouse and keyboard are NOT affected.
 
 **CLI path:** `/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot`
 
@@ -79,4 +80,4 @@ $ARGUMENTS
 7. **If a tap doesn't work** — the coordinates might be off. Screenshot again, recalculate, and retry.
 8. **Tell the user what you see** at each step — describe the screen briefly.
 9. **Don't loop more than 15 actions** without confirming progress with the user.
-10. **The screenshot command handles activation** — it automatically brings iPhone Mirroring to the foreground. No need to activate it manually.
+10. **Everything runs in the background** — the user's mouse/keyboard is not affected. No need to worry about focus.

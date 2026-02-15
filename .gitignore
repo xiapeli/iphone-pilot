@@ -6,3 +6,5 @@ build/
 screenshot.png
 .venv/
 .DS_Store
+# Compiled Swift binary (users compile locally with: swiftc helper/iphone_event.swift)
+helper/iphone_event

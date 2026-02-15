@@ -65,7 +65,6 @@ def execute_steps(steps: list[dict]) -> list[dict]:
 
 def screenshot(path: str | None = None) -> str | None:
     """Capture current iPhone screen. Returns path to saved PNG."""
-    screen.bring_to_front()
     return screen.capture_screenshot(path)
 
 
