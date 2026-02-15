@@ -10,70 +10,137 @@ allowed-tools: Bash(*), Read, Glob, Grep
 You control an iPhone through macOS iPhone Mirroring using the `iphone-pilot` CLI.
 All actions run in the background — the user's mouse and keyboard are NOT affected.
 
-**CLI path:** `/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot`
+**CLI:** `/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot`
 
-Alias for this document: `ip` = `/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot`
+Alias: `ip` = `/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot`
 
-## Commands
+## Available Commands
 
 | Command | What it does |
 |---------|-------------|
-| `ip screenshot` | Captures iPhone screen → prints PNG path. Read the file to see it. |
-| `ip tap <x> <y>` | Tap at coordinates (relative to iPhone screen, 0,0 = top-left) |
-| `ip swipe <x1> <y1> <x2> <y2>` | Swipe between two points |
-| `ip type "<text>"` | Type text into focused field |
-| `ip key <return\|delete\|escape\|tab\|space>` | Press a special key |
+| `ip status` | Check if iPhone Mirroring is connected |
+| `ip screenshot` | Capture iPhone screen → prints PNG path. **Read** the file to see it. |
+| `ip tap <x> <y>` | Tap at coordinates (0,0 = top-left of iPhone screen) |
+| `ip swipe <x1> <y1> <x2> <y2>` | Swipe between two points (uses scroll wheel events) |
+| `ip type "<text>"` | Type text into the currently focused field |
+| `ip key <name>` | Press special key: `return`, `delete`, `escape`, `tab`, `space`, `up`, `down`, `left`, `right` |
 | `ip home` | Go to home screen (Cmd+1) |
 | `ip back` | Go back (Escape key) |
 | `ip scroll-down` | Scroll the current view down |
 | `ip scroll-up` | Scroll the current view up |
-| `ip open <app name>` | Open an app by name (Home → Spotlight → type → Return) |
+| `ip open <app name>` | Open an app by name via Spotlight (Home → Spotlight → type → Return) |
 | `ip app-switcher` | Open the app switcher (Cmd+2) |
 | `ip spotlight` | Open Spotlight search (Cmd+3) |
-| `ip status` | Check if iPhone Mirroring is connected |
 
-## How to execute a task
+## Execution Loop
 
-Follow this loop strictly:
+Follow this loop strictly for every task:
 
-### Step 1: Screenshot and analyze
+### 1. Screenshot first — ALWAYS
 
 ```bash
 /Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot screenshot
 ```
 
-Then **Read** the PNG file it prints. Look at the image and identify:
-- Current app and screen state
-- All visible buttons, text, icons, and fields
-- Approximate (x, y) coordinates for each element
-- Screen size is ~326 wide x 720 tall
+Then **Read** the PNG file path it prints. Analyze the image:
+- What app is open? What screen/state?
+- What buttons, text fields, icons, toggles are visible?
+- Estimate (x, y) coordinates for each interactive element
 
-### Step 2: Act
-
-Run ONE action at a time:
+### 2. Execute ONE action
 
 ```bash
-# To open an app directly:
+# Open an app (preferred over manual navigation):
 /Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot open Settings
 
-# To tap at coordinates:
+# Tap a button/element:
 /Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot tap 163 340
 
-# To type text:
-/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot type "Hello"
+# Type text (field must already be focused — tap it first):
+/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot type "Hello world"
+
+# Press a key:
+/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot key return
 ```
 
-### Step 3: Screenshot again to verify
+### 3. Screenshot again to verify
 
 ```bash
 /Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot screenshot
 ```
 
-Read the new screenshot to confirm the action had the expected effect.
+Read the new screenshot. Did the action work? If not, recalculate coordinates and retry.
 
-### Step 4: Repeat until done
+### 4. Repeat until done
 
-Continue the **screenshot → analyze → act → verify** loop until the task is complete.
+Continue **screenshot → analyze → act → verify** until the task is complete.
+
+## Coordinate System
+
+```
+(0, 0) ─────────────────── (~326, 0)
+│          STATUS BAR          │   y ~0-50
+│──────────────────────────────│
+│                              │
+│         MAIN CONTENT         │   y ~50-670
+│                              │
+│──────────────────────────────│
+│       TAB BAR / HOME BAR     │   y ~670-720
+(0, ~720) ─────────────────── (~326, ~720)
+```
+
+- **Screen size:** ~326 x 720 pixels
+- **Center of screen:** ~163, 360
+- **Status bar:** y ~0-50
+- **Navigation bar (top):** y ~50-100
+- **Tab bar (bottom):** y ~670-720
+- **Home indicator bar:** y ~700-720
+- **Keyboard top:** y ~380 when keyboard is visible
+
+## Common Patterns
+
+### Opening an app
+```bash
+ip open WhatsApp     # Preferred — uses Spotlight
+ip open Settings
+ip open Instagram
+```
+
+### Typing into a text field
+```bash
+ip tap 163 400       # 1. Tap the text field to focus it
+ip screenshot        # 2. Verify keyboard appeared
+ip type "Hello"      # 3. Type the text
+ip key return        # 4. Press Return to submit (if needed)
+```
+
+### Clearing a text field
+```bash
+ip tap 163 400         # Tap the field
+# Select all text then delete:
+ip key delete          # Repeatedly if needed — or long-text fields:
+# Tap the X/clear button if visible in the field
+```
+
+### Scrolling through a list
+```bash
+ip scroll-down         # Scroll down to see more
+ip screenshot          # Check what's now visible
+ip scroll-down         # Scroll more if needed
+```
+
+### Going back / navigating
+```bash
+ip back                # Press Escape (works as Back in most apps)
+ip home                # Go to home screen
+```
+
+### Searching within an app
+```bash
+ip tap 163 60          # Tap search bar at top
+ip type "search term"  # Type search query
+ip key return          # Submit search
+```
 
 ## User Request
 
@@ -81,14 +148,15 @@ $ARGUMENTS
 
 ## Critical Rules
 
-1. **ALWAYS screenshot first.** Never guess coordinates — look at the screen.
-2. **One action at a time.** Tap, then screenshot, then decide next action.
-3. **Coordinates are relative to the iPhone screen.** Top-left corner is (0, 0). Bottom is ~720. Right edge is ~326.
-4. **Aim for the CENTER** of buttons/icons, not edges.
-5. **Use `open <app>` to launch apps** instead of manually navigating to find them.
-6. **If "iPhone in Use" appears** — tell the user to lock their iPhone so mirroring reconnects, then tap the "Connect" button (~230, 730).
-7. **If an element isn't visible** — scroll down/up to find it before giving up.
-8. **If a tap doesn't work** — the coordinates might be off. Screenshot again, recalculate, and retry.
-9. **Tell the user what you see** at each step — describe the screen briefly.
-10. **Don't loop more than 15 actions** without confirming progress with the user.
-11. **Everything runs in the background** — the user's mouse/keyboard is not affected. No need to worry about focus.
+1. **ALWAYS screenshot before acting.** Never guess coordinates — look at the screen first.
+2. **One action at a time.** Act, then screenshot to verify, then decide next action.
+3. **Use `open <app>` to launch apps** — faster and more reliable than navigating the home screen.
+4. **Tap the CENTER of elements**, not edges. Estimate carefully.
+5. **To type: tap the text field first** to focus it, verify the keyboard appeared, then type.
+6. **If a tap doesn't work:** screenshot again, recalculate coordinates (you were probably off), retry.
+7. **If an element isn't visible:** scroll down/up to find it before giving up.
+8. **If "iPhone in Use" appears:** tell the user to lock their iPhone so mirroring reconnects.
+9. **Tell the user what you see** at each step — briefly describe the screen state.
+10. **Max 15 actions** without confirming progress with the user.
+11. **Everything runs in the background** — the user's mouse/keyboard are completely free. Don't worry about focus.
+12. **Swipe uses scroll wheel events** — it works for scrolling content, not for edge gestures like "swipe from left to go back" (use `ip back` instead).
