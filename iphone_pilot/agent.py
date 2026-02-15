@@ -46,6 +46,8 @@ def execute_step(step: dict) -> bool:
         return actions.scroll_down()
     elif action == "scroll_up":
         return actions.scroll_up()
+    elif action == "paste":
+        return actions.paste_text(step["text"])
     elif action == "open_app":
         return actions.open_app(step["name"])
     elif action == "app_switcher":

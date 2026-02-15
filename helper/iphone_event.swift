@@ -305,7 +305,46 @@ func typeChar(_ char: Character) {
     }
 }
 
+/// Check if text contains non-ASCII characters (Chinese, emoji, etc.)
+func hasNonASCII(_ text: String) -> Bool {
+    return text.unicodeScalars.contains { $0.value > 127 }
+}
+
+/// Paste text via clipboard + Cmd+V (works for ANY language including Chinese)
+func pasteText(_ text: String, app: NSRunningApplication) {
+    log("paste: setting clipboard and pasting")
+
+    // Set macOS clipboard
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    pasteboard.setString(text, forType: .string)
+
+    let previousApp = activateIPhoneMirroring(app)
+    usleep(100_000)
+
+    // Cmd+V to paste
+    if let down = CGEvent(keyboardEventSource: eventSource, virtualKey: 9, keyDown: true) {
+        down.flags = .maskCommand
+        down.post(tap: .cghidEventTap)
+    }
+    usleep(50_000)
+    if let up = CGEvent(keyboardEventSource: eventSource, virtualKey: 9, keyDown: false) {
+        up.flags = .maskCommand
+        up.post(tap: .cghidEventTap)
+    }
+    usleep(200_000)
+
+    restorePreviousApp(previousApp)
+    print("OK")
+}
+
 func typeText(_ text: String, app: NSRunningApplication, restoreFocus: Bool = true) {
+    // Auto-detect: use paste for non-ASCII text (Chinese, emoji, etc.)
+    if hasNonASCII(text) {
+        pasteText(text, app: app)
+        return
+    }
+
     let previousApp = activateIPhoneMirroring(app)
     for char in text {
         typeChar(char)
@@ -332,13 +371,24 @@ func pressKey(_ keyCode: CGKeyCode, flags: CGEventFlags = [], app: NSRunningAppl
 }
 
 /// Open app via AppleScript (most reliable for multi-step keyboard sequences)
+/// For non-ASCII names (Chinese, etc.), uses clipboard paste instead of keystroke
 func openApp(_ name: String) {
     log("openapp: opening '\(name)' via AppleScript")
 
     let previousApp = NSWorkspace.shared.frontmostApplication
 
-    let escaped = name.replacingOccurrences(of: "\\", with: "\\\\")
-                      .replacingOccurrences(of: "\"", with: "\\\"")
+    var typeMethod: String
+    if hasNonASCII(name) {
+        // Set clipboard first, then paste with Cmd+V
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(name, forType: .string)
+        typeMethod = "keystroke \"v\" using command down"
+    } else {
+        let escaped = name.replacingOccurrences(of: "\\", with: "\\\\")
+                          .replacingOccurrences(of: "\"", with: "\\\"")
+        typeMethod = "keystroke \"\(escaped)\""
+    }
 
     let script = """
     tell application "iPhone Mirroring" to activate
@@ -348,7 +398,7 @@ func openApp(_ name: String) {
         delay 0.8
         keystroke "3" using command down
         delay 1.2
-        keystroke "\(escaped)"
+        \(typeMethod)
         delay 0.8
         key code 36
     end tell
@@ -466,6 +516,12 @@ case "type":
         fputs("Usage: iphone_event type <text>\n", stderr); exit(1)
     }
     typeText(args[2...].joined(separator: " "), app: mirroringApp)
+
+case "paste":
+    guard args.count >= 3 else {
+        fputs("Usage: iphone_event paste <text>\n", stderr); exit(1)
+    }
+    pasteText(args[2...].joined(separator: " "), app: mirroringApp)
 
 case "key":
     guard args.count >= 3 else {

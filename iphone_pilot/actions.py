@@ -50,8 +50,17 @@ def swipe(x1: int, y1: int, x2: int, y2: int) -> bool:
 
 
 def type_text(text: str) -> bool:
-    """Type text into the currently focused field."""
+    """Type text into the currently focused field.
+    Auto-detects non-ASCII (Chinese, emoji) and uses clipboard paste.
+    """
     result = _run_helper("type", text)
+    time.sleep(ACTION_DELAY)
+    return result
+
+
+def paste_text(text: str) -> bool:
+    """Paste text via clipboard (works for any language including Chinese)."""
+    result = _run_helper("paste", text)
     time.sleep(ACTION_DELAY)
     return result
 
