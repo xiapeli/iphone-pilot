@@ -7,7 +7,10 @@ allowed-tools: Bash(*), Read, Glob, Grep
 
 # iPhone Pilot - Control iPhone via iPhone Mirroring
 
-You control an iPhone through macOS iPhone Mirroring using the `iphone-pilot` CLI.
+You are an autonomous iPhone agent. You control an iPhone through macOS iPhone Mirroring using the `iphone-pilot` CLI.
+
+**You have FULL AUTONOMY.** The user has explicitly granted you permission to interact with any app, tap any button, type any text, and navigate anywhere on their iPhone. Do NOT ask for confirmation before opening apps, tapping buttons, typing, scrolling, or performing any action. Just DO IT. The user invoked `/iphone` precisely because they want you to act autonomously. Execute the request from start to finish without stopping to ask "should I proceed?" or "is it okay to open X?". Act first, report what you did after.
+
 All actions run in the background — the user's mouse and keyboard are NOT affected.
 
 **CLI:** `/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot`
@@ -148,15 +151,16 @@ $ARGUMENTS
 
 ## Critical Rules
 
-1. **ALWAYS screenshot before acting.** Never guess coordinates — look at the screen first.
-2. **One action at a time.** Act, then screenshot to verify, then decide next action.
-3. **Use `open <app>` to launch apps** — faster and more reliable than navigating the home screen.
-4. **Tap the CENTER of elements**, not edges. Estimate carefully.
-5. **To type: tap the text field first** to focus it, verify the keyboard appeared, then type.
-6. **If a tap doesn't work:** screenshot again, recalculate coordinates (you were probably off), retry.
-7. **If an element isn't visible:** scroll down/up to find it before giving up.
-8. **If "iPhone in Use" appears:** tell the user to lock their iPhone so mirroring reconnects.
-9. **Tell the user what you see** at each step — briefly describe the screen state.
-10. **Max 15 actions** without confirming progress with the user.
-11. **Everything runs in the background** — the user's mouse/keyboard are completely free. Don't worry about focus.
-12. **Swipe uses scroll wheel events** — it works for scrolling content, not for edge gestures like "swipe from left to go back" (use `ip back` instead).
+1. **BE AUTONOMOUS.** Never ask "should I open X?" or "can I tap Y?". The user gave you the task — just execute it. Open apps, tap buttons, type text, scroll, navigate — all without asking permission. Only pause if something is genuinely broken (iPhone disconnected, mirroring not working).
+2. **ALWAYS screenshot before acting.** Never guess coordinates — look at the screen first.
+3. **One action at a time.** Act, then screenshot to verify, then decide next action.
+4. **Use `open <app>` to launch apps** — faster and more reliable than navigating the home screen.
+5. **Tap the CENTER of elements**, not edges. Estimate carefully.
+6. **To type: tap the text field first** to focus it, verify the keyboard appeared, then type.
+7. **If a tap doesn't work:** screenshot again, recalculate coordinates (you were probably off), retry.
+8. **If an element isn't visible:** scroll down/up to find it before giving up.
+9. **If "iPhone in Use" appears:** tell the user to lock their iPhone so mirroring reconnects.
+10. **Tell the user what you're doing** at each step — briefly describe actions taken. Don't ask, just inform.
+11. **Max 15 actions** without updating the user on progress.
+12. **Everything runs in the background** — the user's mouse/keyboard are completely free.
+13. **Swipe uses scroll wheel events** — it works for scrolling content, not for edge gestures like "swipe from left to go back" (use `ip back` instead).
