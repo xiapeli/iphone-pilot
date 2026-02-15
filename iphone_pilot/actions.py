@@ -1,4 +1,8 @@
-"""Actions on iPhone via iPhone Mirroring (tap, swipe, type, home)."""
+"""Actions on iPhone via iPhone Mirroring (tap, swipe, type, home).
+
+All actions activate iPhone Mirroring first, get bounds, compute
+absolute coordinates, then execute via cliclick in a single flow.
+"""
 
 import subprocess
 import time
@@ -7,16 +11,27 @@ from .config import ACTION_DELAY, IPHONE_MIRRORING_PROCESS
 from .screen import get_window_bounds
 
 
-def _run_applescript(script: str) -> bool:
-    """Run an AppleScript and return success status."""
+def _run_cliclick(*args: str) -> bool:
+    """Run cliclick with given arguments."""
     try:
         result = subprocess.run(
-            ["osascript", "-e", script],
+            ["cliclick", *args],
             capture_output=True, text=True, timeout=10,
         )
         return result.returncode == 0
-    except subprocess.TimeoutExpired:
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
+
+
+def _activate_and_run(*cliclick_args: str) -> bool:
+    """Activate iPhone Mirroring, then immediately run cliclick."""
+    # Activate in AppleScript
+    script = f'''
+    tell application "{IPHONE_MIRRORING_PROCESS}" to activate
+    delay 0.5
+    '''
+    subprocess.run(["osascript", "-e", script], capture_output=True, timeout=5)
+    return _run_cliclick(*cliclick_args)
 
 
 def _to_absolute(rel_x: int, rel_y: int) -> tuple[int, int] | None:
@@ -34,16 +49,7 @@ def tap(x: int, y: int) -> bool:
     if not abs_coords:
         return False
     ax, ay = abs_coords
-    script = f'''
-    tell application "System Events"
-        tell process "{IPHONE_MIRRORING_PROCESS}"
-            set frontmost to true
-        end tell
-    end tell
-    delay 0.2
-    do shell script "cliclick c:{ax},{ay}"
-    '''
-    result = _run_applescript(script)
+    result = _activate_and_run(f"c:{ax},{ay}")
     time.sleep(ACTION_DELAY)
     return result
 
@@ -56,63 +62,45 @@ def swipe(x1: int, y1: int, x2: int, y2: int, duration: float = 0.3) -> bool:
         return False
     sx, sy = start
     ex, ey = end
-    # cliclick drag: dd = drag down (mousedown, move, mouseup)
-    script = f'''
-    tell application "System Events"
-        tell process "{IPHONE_MIRRORING_PROCESS}"
-            set frontmost to true
-        end tell
-    end tell
-    delay 0.2
-    do shell script "cliclick dd:{sx},{sy} du:{ex},{ey}"
-    '''
-    result = _run_applescript(script)
+    result = _activate_and_run(f"dd:{sx},{sy}", f"du:{ex},{ey}")
     time.sleep(ACTION_DELAY)
     return result
 
 
 def type_text(text: str) -> bool:
     """Type text into the currently focused field."""
-    # Escape special characters for AppleScript
-    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    # Activate iPhone Mirroring first
     script = f'''
-    tell application "System Events"
-        tell process "{IPHONE_MIRRORING_PROCESS}"
-            set frontmost to true
-        end tell
-    end tell
-    delay 0.2
-    tell application "System Events"
-        keystroke "{escaped}"
-    end tell
+    tell application "{IPHONE_MIRRORING_PROCESS}" to activate
+    delay 0.5
     '''
-    result = _run_applescript(script)
+    subprocess.run(["osascript", "-e", script], capture_output=True, timeout=5)
+
+    # Use cliclick for typing (handles special chars better)
+    result = _run_cliclick(f"t:{text}")
     time.sleep(ACTION_DELAY)
     return result
 
 
 def press_key(key: str) -> bool:
     """Press a special key (return, escape, delete, tab)."""
-    key_codes = {
-        "return": 36, "escape": 53, "delete": 51,
-        "tab": 48, "space": 49, "up": 126,
-        "down": 125, "left": 123, "right": 124,
+    # Map friendly names to cliclick key codes
+    key_map = {
+        "return": "return", "escape": "escape", "delete": "delete",
+        "tab": "tab", "space": "space", "up": "arrow-up",
+        "down": "arrow-down", "left": "arrow-left", "right": "arrow-right",
     }
-    code = key_codes.get(key.lower())
-    if code is None:
+    ck_key = key_map.get(key.lower())
+    if ck_key is None:
         return False
+
     script = f'''
-    tell application "System Events"
-        tell process "{IPHONE_MIRRORING_PROCESS}"
-            set frontmost to true
-        end tell
-    end tell
-    delay 0.2
-    tell application "System Events"
-        key code {code}
-    end tell
+    tell application "{IPHONE_MIRRORING_PROCESS}" to activate
+    delay 0.5
     '''
-    result = _run_applescript(script)
+    subprocess.run(["osascript", "-e", script], capture_output=True, timeout=5)
+
+    result = _run_cliclick(f"kp:{ck_key}")
     time.sleep(ACTION_DELAY)
     return result
 
@@ -123,7 +111,6 @@ def home() -> bool:
     if not bounds:
         return False
     _, _, w, h = bounds
-    # Swipe up from bottom center
     return swipe(w // 2, h - 20, w // 2, h // 3)
 
 
@@ -133,7 +120,6 @@ def back() -> bool:
     if not bounds:
         return False
     _, _, w, h = bounds
-    # Swipe from left edge to center
     return swipe(10, h // 2, w // 2, h // 2)
 
 

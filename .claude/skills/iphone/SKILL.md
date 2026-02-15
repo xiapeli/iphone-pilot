@@ -7,76 +7,76 @@ allowed-tools: Bash(*), Read, Glob, Grep
 
 # iPhone Pilot - Control iPhone via iPhone Mirroring
 
-You are controlling an iPhone through macOS iPhone Mirroring. You have access to the `iphone-pilot` CLI toolkit to capture screenshots and execute actions.
+You control an iPhone through macOS iPhone Mirroring using the `iphone-pilot` CLI.
 
-## Available Commands
+**CLI path:** `/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot`
+
+Alias for this document: `ip` = `/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot`
+
+## Commands
+
+| Command | What it does |
+|---------|-------------|
+| `ip screenshot` | Captures iPhone screen → prints PNG path. Read the file to see it. |
+| `ip tap <x> <y>` | Tap at coordinates (relative to iPhone screen, 0,0 = top-left) |
+| `ip swipe <x1> <y1> <x2> <y2>` | Swipe between two points |
+| `ip type "<text>"` | Type text into focused field |
+| `ip key <return\|delete\|escape\|tab\|space>` | Press a special key |
+| `ip home` | Swipe up to go to home screen |
+| `ip back` | Swipe right to go back |
+| `ip scroll-down` | Scroll the current view down |
+| `ip scroll-up` | Scroll the current view up |
+| `ip status` | Check if iPhone Mirroring is connected |
+
+## How to execute a task
+
+Follow this loop strictly:
+
+### Step 1: Screenshot and analyze
 
 ```bash
-iphone-pilot status                          # Check connection
-iphone-pilot screenshot [path]               # Capture screen → returns file path
-iphone-pilot tap <x> <y>                     # Tap at coordinates
-iphone-pilot swipe <x1> <y1> <x2> <y2>      # Swipe between points
-iphone-pilot type <text>                     # Type text
-iphone-pilot key <return|delete|escape|tab>  # Press special key
-iphone-pilot home                            # Go to home screen
-iphone-pilot back                            # Swipe back
-iphone-pilot scroll-down                     # Scroll down
-iphone-pilot scroll-up                       # Scroll up
-iphone-pilot skills                          # List learned skills
+/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot screenshot
 ```
 
-## Workflow
+Then **Read** the PNG file it prints. Look at the image and identify:
+- Current app and screen state
+- All visible buttons, text, icons, and fields
+- Approximate (x, y) coordinates for each element
+- Screen size is ~326 wide x 720 tall
 
-Follow this loop for every user request:
+### Step 2: Act
 
-### 1. Check connection
+Run ONE action at a time:
+
 ```bash
-iphone-pilot status
+/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot tap 163 340
 ```
-If not connected, tell the user to open iPhone Mirroring.
 
-### 2. Capture screenshot
+### Step 3: Screenshot again to verify
+
 ```bash
-iphone-pilot screenshot
-```
-This saves a PNG file. Read it with the Read tool to see the iPhone screen.
-
-### 3. Analyze the screen
-After reading the screenshot image, identify:
-- What app/screen is currently showing
-- All visible UI elements (buttons, text, icons, fields)
-- Their approximate coordinates (top-left of iPhone screen is 0,0)
-- The iPhone screen is typically ~326x720 pixels
-
-### 4. Execute actions
-Based on what you see, execute the appropriate commands:
-```bash
-iphone-pilot tap 163 340        # Tap on an element
-iphone-pilot type "hello"       # Type into a focused field
-iphone-pilot scroll-down        # Scroll to find more content
+/Users/phelipexavier/iphone-pilot/.venv/bin/iphone-pilot screenshot
 ```
 
-### 5. Verify result
-After each action, capture a new screenshot and read it to confirm the action worked:
-```bash
-iphone-pilot screenshot
-```
-Then read the screenshot to verify.
+Read the new screenshot to confirm the action had the expected effect.
 
-### 6. Repeat
-Continue the capture → analyze → act → verify loop until the task is complete.
+### Step 4: Repeat until done
+
+Continue the **screenshot → analyze → act → verify** loop until the task is complete.
 
 ## User Request
 
 $ARGUMENTS
 
-## Important Rules
+## Critical Rules
 
-- ALWAYS capture and READ a screenshot before deciding what to tap
-- Coordinates are relative to the iPhone Mirroring window (0,0 = top-left of iPhone screen)
-- After tapping, WAIT briefly then screenshot again to see the result
-- If something doesn't work, try alternative approaches (scroll to find element, go home and try again)
-- Be precise with coordinates - aim for the CENTER of the target element
-- Tell the user what you see and what you're doing at each step
-- If you can't find an element, scroll down/up to look for it
-- The iPhone screen is small (~326x720), so elements are compact
+1. **ALWAYS screenshot first.** Never guess coordinates — look at the screen.
+2. **One action at a time.** Tap, then screenshot, then decide next action.
+3. **Coordinates are relative to the iPhone screen.** Top-left corner is (0, 0). Bottom is ~720. Right edge is ~326.
+4. **Aim for the CENTER** of buttons/icons, not edges.
+5. **If "iPhone in Use" appears** — tell the user to lock their iPhone so mirroring reconnects, then tap the "Connect" button (~230, 730).
+6. **If an element isn't visible** — scroll down/up to find it before giving up.
+7. **If a tap doesn't work** — the coordinates might be off. Screenshot again, recalculate, and retry.
+8. **Tell the user what you see** at each step — describe the screen briefly.
+9. **Don't loop more than 15 actions** without confirming progress with the user.
+10. **The screenshot command handles activation** — it automatically brings iPhone Mirroring to the foreground. No need to activate it manually.
