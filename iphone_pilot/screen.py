@@ -1,4 +1,8 @@
-"""Screen capture for iPhone Mirroring window."""
+"""Screen capture for iPhone Mirroring window.
+
+Uses screencapture -l<windowID> to capture the window regardless of z-order.
+The window does NOT need to be frontmost — works even behind other windows.
+"""
 
 import subprocess
 import time
@@ -30,23 +34,41 @@ def get_window_bounds() -> tuple[int, int, int, int] | None:
         return None
 
 
+def get_window_id() -> int | None:
+    """Get the CGWindowID for iPhone Mirroring window.
+
+    Used for screencapture -l<windowID> which captures the window
+    regardless of z-order (even behind other windows).
+    """
+    try:
+        result = subprocess.run(
+            [HELPER, "windowid"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode != 0:
+            return None
+        return int(result.stdout.strip())
+    except (subprocess.TimeoutExpired, ValueError, FileNotFoundError):
+        return None
+
+
 def capture_screenshot(path: str | Path | None = None) -> str | None:
     """Capture iPhone Mirroring window to a PNG file.
 
-    Does NOT activate or move focus — captures from wherever the window is.
+    Uses screencapture -l<windowID> to capture the specific window,
+    even if it's behind other windows. Does NOT activate or move focus.
     Returns the absolute path to the saved screenshot, or None on failure.
     """
-    bounds = get_window_bounds()
-    if not bounds:
+    window_id = get_window_id()
+    if not window_id:
         return None
 
-    x, y, w, h = bounds
     save_path = Path(path) if path else SCREENSHOT_PATH
     time.sleep(SCREENSHOT_DELAY)
 
     try:
         result = subprocess.run(
-            ["screencapture", f"-R{x},{y},{w},{h}", "-x", str(save_path)],
+            ["screencapture", f"-l{window_id}", "-o", "-x", str(save_path)],
             capture_output=True, timeout=5,
         )
         if result.returncode != 0:

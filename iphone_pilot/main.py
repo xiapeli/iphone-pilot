@@ -27,6 +27,9 @@ def main():
         print("  back                Go back")
         print("  scroll-down         Scroll down")
         print("  scroll-up           Scroll up")
+        print("  open <app>          Open app by name (via Spotlight)")
+        print("  app-switcher        Open app switcher")
+        print("  spotlight           Open Spotlight search")
         print("  run <json-steps>    Execute action steps from JSON")
         print("  skills              List learned skills")
         return
@@ -86,6 +89,18 @@ def main():
 
     elif cmd == "scroll-up":
         ok = agent.execute_step({"action": "scroll_up"})
+        print("OK" if ok else "FAIL")
+
+    elif cmd == "open" and len(sys.argv) >= 3:
+        ok = agent.execute_step({"action": "open_app", "name": " ".join(sys.argv[2:])})
+        print("OK" if ok else "FAIL")
+
+    elif cmd == "app-switcher":
+        ok = agent.execute_step({"action": "app_switcher"})
+        print("OK" if ok else "FAIL")
+
+    elif cmd == "spotlight":
+        ok = agent.execute_step({"action": "spotlight"})
         print("OK" if ok else "FAIL")
 
     elif cmd == "run" and len(sys.argv) >= 3:

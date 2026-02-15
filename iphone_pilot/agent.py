@@ -20,9 +20,12 @@ def execute_step(step: dict) -> bool:
         type(text)          - Type text
         press_key(key)      - Press special key (return, delete, etc.)
         home()              - Go to home screen
-        back()              - Swipe back
+        back()              - Go back (Escape)
         scroll_down()       - Scroll down
         scroll_up()         - Scroll up
+        open_app(name)      - Open app by name via Spotlight
+        app_switcher()      - Open app switcher
+        spotlight()         - Open Spotlight search
         wait(seconds)       - Wait
     """
     action = step.get("action")
@@ -43,6 +46,12 @@ def execute_step(step: dict) -> bool:
         return actions.scroll_down()
     elif action == "scroll_up":
         return actions.scroll_up()
+    elif action == "open_app":
+        return actions.open_app(step["name"])
+    elif action == "app_switcher":
+        return actions.app_switcher()
+    elif action == "spotlight":
+        return actions.spotlight()
     elif action == "wait":
         time.sleep(step.get("seconds", 1))
         return True
