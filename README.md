@@ -34,7 +34,7 @@ Claude Code: Capturing screenshot...
 brew install cliclick
 
 # 2. Clone and install
-git clone https://github.com/phelipexavier/iphone-pilot.git
+git clone https://github.com/xiapeli/iphone-pilot.git
 cd iphone-pilot
 python3.12 -m venv .venv
 source .venv/bin/activate

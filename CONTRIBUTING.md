@@ -36,7 +36,7 @@ brew install cliclick
 # Python 3.11+ required
 
 # Clone and setup
-git clone https://github.com/<your-username>/iphone-pilot.git
+git clone https://github.com/<your-fork>/iphone-pilot.git
 cd iphone-pilot
 python3.12 -m venv .venv
 source .venv/bin/activate

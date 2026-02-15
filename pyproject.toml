@@ -25,4 +25,4 @@ dependencies = []
 iphone-pilot = "iphone_pilot.main:cli"
 
 [project.urls]
-Homepage = "https://github.com/phelipexavier/iphone-pilot"
+Homepage = "https://github.com/xiapeli/iphone-pilot"
