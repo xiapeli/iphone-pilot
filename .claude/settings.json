@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(iphone-pilot *)",
+      "Bash(source .venv/bin/activate*)"
+    ]
+  }
+}
